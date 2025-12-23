@@ -3,68 +3,44 @@ const fs = require('fs');
 const path = require('path');
 const queryString = require('querystring');
 
-// CHANGE THIS TO YOUR SECRET PASSWORD
-const ADMIN_PASSWORD = "mysecretnews"; 
+// SET YOUR PASSWORD HERE
+const MY_PASSWORD = "123"; 
 
 const server = http.createServer((req, res) => {
-    const url = req.url;
-    const method = req.method;
-
-    if (method === 'GET' && url === '/') {
-        // Show Reader Page
+    // 1. ROUTE FOR THE PUBLIC VIEW
+    if (req.url === '/' && req.method === 'GET') {
         fs.readFile(path.join(__dirname, '../index.html'), (err, data) => {
             res.writeHead(200, {'Content-Type': 'text/html'});
             res.end(data);
         });
-    } else if (method === 'GET' && url === '/admin') {
-        // Show Secret Admin Page
+    } 
+    // 2. ROUTE FOR THE ADMIN PAGE
+    else if (req.url === '/admin' && req.method === 'GET') {
         fs.readFile(path.join(__dirname, '../admin.html'), (err, data) => {
             res.writeHead(200, {'Content-Type': 'text/html'});
             res.end(data);
         });
-    } else if (method === 'GET' && url === '/api/get-news') {
-        // Send news data
-        fs.readFile(path.join(__dirname, '../news.json'), (err, data) => {
-            res.writeHead(200, {'Content-Type': 'application/json'});
-            res.end(data || '[]');
-        });
-    } else if (method === 'POST' && url === '/api/publish') {
-        // Handle Publishing News
+    }
+    // 3. ROUTE TO SAVE NEWS (THE PUBLISH ACTION)
+    else if (req.url === '/api/publish' && req.method === 'POST') {
         let body = '';
         req.on('data', chunk => { body += chunk.toString(); });
         req.on('end', () => {
-            const formData = queryString.parse(body);
+            const data = queryString.parse(body);
             
-            // SECURITY CHECK: Check if password is correct
-            if (formData.password !== ADMIN_PASSWORD) {
+            // CHECK PASSWORD
+            if (data.password !== MY_PASSWORD) {
                 res.writeHead(403);
-                return res.end("Error: Wrong Admin Password!");
+                return res.end("WRONG PASSWORD!");
             }
 
-            fs.readFile(path.join(__dirname, '../news.json'), (err, data) => {
-                const news = JSON.parse(data || '[]');
-                news.unshift({
-                    title: formData.title,
-                    content: formData.content,
-                    video: formData.video,
-                    date: new Date().toLocaleString()
-                });
-                
-                fs.writeFile(path.join(__dirname, '../news.json'), JSON.stringify(news), () => {
-                    res.writeHead(302, {'Location': '/'});
-                    res.end();
-                });
-            });
+            // FOR NOW: This will work locally, but on Vercel 
+            // we will need to connect the KV database next.
+            console.log("News Received:", data.title);
+            res.writeHead(302, {'Location': '/'});
+            res.end();
         });
     }
 });
-
-// For local testing
-if (require.main === module) {
-    server.listen(3000, '127.0.0.1', () => {
-        console.log('Journal running at http://localhost:3000');
-        console.log('Admin access at http://localhost:3000/admin');
-    });
-}
 
 module.exports = server;
